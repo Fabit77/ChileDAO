@@ -1,0 +1,11 @@
+"use client";
+import { useState } from "react";
+import { Check, ExternalLink, Plus, X } from "lucide-react";
+import { ContributionStatus } from "@/components/status-pill";
+
+type LocalContribution = { title: string; role: string; description: string; evidence: string };
+export function ContributionManager() {
+  const [open, setOpen] = useState(false); const [saved, setSaved] = useState<LocalContribution[]>([]);
+  const submit = (formData: FormData) => { const item = { title: String(formData.get("title")), role: String(formData.get("role")), description: String(formData.get("description")), evidence: String(formData.get("evidence")) }; setSaved((items) => [item, ...items]); localStorage.setItem("chiledao_contributions", JSON.stringify([item, ...saved])); setOpen(false); };
+  return <>{open && <div className="modal-backdrop"><div className="modal"><button className="modal-close" onClick={() => setOpen(false)} aria-label="Cerrar"><X /></button><span className="eyebrow">Proof of work</span><h2>Registrar contribution</h2><p>Describe el trabajo y agrega evidencia. Comenzará como declaración propia.</p><form action={submit} className="stack-form"><label>Título<input name="title" required maxLength={100} placeholder="Ej. Taller de Solidity para estudiantes" /></label><label>Tu rol<input name="role" required maxLength={80} placeholder="Ej. Facilitadora técnica" /></label><label>Descripción<textarea name="description" required maxLength={800} placeholder="Qué hiciste, para quién y qué resultado tuvo..." /></label><label>URL de evidencia<input name="evidence" required type="url" placeholder="https://github.com/..." /></label><div className="info-inline"><Check size={14} /> Nadie puede marcarla como verificada sin un registro de validation.</div><button className="button button-primary full-button">Guardar contribution</button></form></div></div>}<button className="button button-primary" onClick={() => setOpen(true)}><Plus size={16} /> Nueva contribution</button>{saved.map((item, index) => <article className="manage-contribution" key={`${item.title}-${index}`}><div><ContributionStatus status="SELF_CLAIMED" /><h3>{item.title}</h3><p>{item.role} · {item.description}</p></div><a href={item.evidence} target="_blank" rel="noreferrer">Evidencia <ExternalLink size={13} /></a></article>)}</>;
+}

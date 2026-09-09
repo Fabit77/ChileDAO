@@ -1,0 +1,1 @@
+export function ProgressRing({ value, total }: { value: number; total: number }) { const pct = Math.min(100, (value / total) * 100); return <div className="progress-ring" style={{ background: `conic-gradient(var(--lime) ${pct}%, #e7e7e1 0)` }}><div><b>{value}</b><span>/ {total}</span></div></div>; }

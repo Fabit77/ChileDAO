@@ -1,0 +1,7 @@
+import type { Metadata } from "next";
+import { Avatar } from "@/components/avatar";
+import { Check, Info } from "lucide-react";
+import { VouchPanel } from "./vouch-panel";
+
+export const metadata: Metadata = { title: "Validar identidad comunitaria" };
+export default async function VouchPage({ params }: { params: Promise<{ token: string }> }) { await params; return <main className="vouch-page"><div className="vouch-card"><section className="vouch-candidate"><span className="eyebrow">Membership vouch</span><Avatar initials="MS" size="hero" index={4} /><h1>¿Conoces a<br />Martina Sáez?</h1><p>Frontend developer explorando Web3. Construye interfaces accesibles y colabora en su primer proyecto onchain.</p><span className="member-location">Santiago, Chile · @martinasaez</span><div className="mutuals"><div>{["CS", "TA", "IR"].map((initials, i) => <Avatar key={initials} initials={initials} size="small" index={i} />)}</div><span>3 personas ya la conocen</span></div></section><section className="vouch-explanation"><div className="meaning-box"><Info size={18} /><div><h2>¿Qué estás confirmando?</h2><p>Únicamente que conoces a esta persona y reconoces su vínculo con el ecosistema Web3.</p></div></div><ul><li><Check size={15} /> Es una persona real que conozco</li><li><Check size={15} /> Tiene vínculo con el ecosistema</li><li className="not"><span>×</span> No es una recomendación laboral</li><li className="not"><span>×</span> No valida sus skills profesionales</li></ul><VouchPanel candidate="Martina" /></section></div></main>; }
