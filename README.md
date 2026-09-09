@@ -2,44 +2,106 @@
 
 **La red de confianza y reputación del ecosistema Web3 chileno.**
 
-Chile DAO es un hub digital de talento donde la membresía y la reputación se construyen a partir de validaciones de la propia comunidad.
+Chile DAO es un directorio confiable de talento basado en relaciones reales, trabajo demostrado y validaciones con contexto. El MVP implementa una experiencia completa y responsive con perfiles, onboarding de candidatos, vouches de membresía, contributions, proyectos, organizaciones, endorsements, dashboard y administración.
 
-## Principio central
+## Regla de producto
 
-Entrar a Chile DAO no es un registro abierto. Una persona comienza como **Candidate** y necesita recibir **5 vouches de 5 miembros verificados distintos** que confirmen que la conocen y que pertenece al ecosistema. Esa validación de entrada es distinta de los endorsements profesionales.
+Las señales viven en modelos, flujos y componentes distintos:
 
-Una vez dentro, los miembros pueden:
+| Pregunta | Señal | Qué significa |
+| --- | --- | --- |
+| ¿Quién te conoce? | `MembershipVouch` | Identidad comunitaria y vínculo con el ecosistema. |
+| ¿Qué has hecho? | `Contribution` + evidencia | Proof of work registrado por su autor. |
+| ¿Quién puede dar fe de tu trabajo? | `ContributionValidation` + `SkillEndorsement` | Validación profesional contextual. |
 
-- Crear un perfil público de talento.
-- Registrar contribuciones, proyectos y trabajos.
-- Adjuntar evidencia pública.
-- Solicitar validaciones de skills y contribuciones.
-- Recibir badges de la comunidad.
-- Construir reputación verificable.
-- Conectar una wallet y registrar pruebas onchain.
-- Ser descubiertos por personas y organizaciones que buscan talento Web3.
+Un vouch nunca crea un endorsement. Un endorsement nunca aumenta el progreso de membresía. Una contribution comienza siempre como `SELF_CLAIMED` y solo cambia de estado por registros de validación.
 
-## Estados de membresía
+## Lo implementado
 
-- `visitor`: puede explorar contenido público.
-- `candidate`: creó su perfil y está reuniendo vouches.
-- `qualified`: llegó al umbral de 5 vouches pero aún debe completar los requisitos onchain/wallet configurados.
-- `member`: miembro verificado de Chile DAO.
-- `trusted_member`: etapa futura basada en historial y reputación.
-- `admin`: bootstrap, moderación y configuración del protocolo.
+- Landing editorial, accesible y responsive.
+- Directorio filtrable de talento en `/members`.
+- Perfiles públicos con vouches, contributions, skills, endorsements y badges como señales observables.
+- Catálogo de proyectos y organizaciones con páginas públicas.
+- Onboarding en tres pasos y experiencia Candidate `0/5`.
+- Página compartible `/vouch/[token]` con el significado explícito del vouch.
+- Dashboard de Candidate y Member, bandeja de solicitudes y alta de contributions.
+- Zona administrativa para candidatos, organizaciones y disputas.
+- Server Actions validadas con Zod, autorización por rol y rate limiting básico.
+- Schema Prisma PostgreSQL con constraints, índices y enums de dominio.
+- Seed idempotente: 8 miembros, 2 candidatos, 4 organizaciones, 6 proyectos, 15 contributions, skills, badges, vouches y validations.
+- `AttestationProvider` desacoplado, proveedor mock y boundary EVM.
+- Analytics agnóstico de proveedor.
+- 10 tests de las reglas críticas del grafo de confianza.
 
-## Regla de confianza
+## Arquitectura
 
-Un vouch significa solamente:
+```text
+app/                     App Router, páginas, Server Actions y API health
+components/              Componentes compartidos de producto
+lib/domain/              Reglas puras y testeables de membresía/reputación
+lib/auth/                Boundary de sesión y autorización server-side
+lib/attestations/        Contrato, mock y scaffold EVM
+lib/demo-data.ts         Dataset navegable sin credenciales
+prisma/schema.prisma     Modelo PostgreSQL de producción
+prisma/seed.ts           Seed idempotente
+```
 
-> “Conozco a esta persona y confirmo que es una persona real vinculada al ecosistema.”
+La app usa Server Components para lecturas públicas y Client Components solo donde hay interacción. Las mutaciones de producción entran por Server Actions tratadas como endpoints no confiables: autentican, autorizan, validan input y limitan frecuencia.
 
-No significa que quien valida recomiende profesionalmente al candidato.
+### Modo demo y producción
 
-Las validaciones profesionales ocurren por separado y siempre deben estar vinculadas, cuando sea posible, a una contribución o evidencia concreta.
+`DEMO_MODE=true` permite recorrer el producto inmediatamente sin GitHub, Google, wallet ni base de datos. Los formularios interactivos de la demo persisten temporalmente en el navegador. El schema y las acciones server-side son el boundary de producción: al configurar PostgreSQL y OAuth, el repositorio Prisma sustituye los fixtures sin cambiar la UI ni las reglas de dominio.
 
-## Desarrollo
+No uses `DEMO_MODE=true` para un despliegue público con datos reales.
 
-El brief maestro para Codex está en [`CODEX_PROMPT.md`](./CODEX_PROMPT.md).
+## Setup local
 
-El repositorio incluye una base mínima de Next.js preparada para evolucionar hacia el MVP descrito en ese documento y desplegarse en Vercel.
+Requisitos: Node.js 20.9 o superior y PostgreSQL 15 o superior.
+
+```bash
+npm install
+cp .env.example .env.local
+npm run db:generate
+npx prisma db push
+npm run db:seed
+npm run dev
+```
+
+Abre `http://localhost:3000`. Si todavía no tienes PostgreSQL, deja `DEMO_MODE=true`, omite `db push`/`db:seed` y navega el MVP con los datos incluidos.
+
+## Variables de entorno
+
+Consulta [`.env.example`](./.env.example). Las únicas obligatorias para persistencia real son:
+
+- `DATABASE_URL`: conexión PostgreSQL con TLS.
+- `AUTH_SECRET`: secreto largo para el proveedor de sesión.
+- `DEMO_MODE=false`: desactiva el fallback demo.
+
+GitHub/Google OAuth y EVM son adapters opcionales. Nunca se incluyen emails, razones privadas de vouch, teléfonos o mensajes personales en attestations.
+
+## Calidad
+
+```bash
+npm test
+npm run lint
+npm run typecheck
+npm run build
+```
+
+Los tests cubren el umbral 5/5, duplicados, auto-vouch, elegibilidad del validador, revocación y la separación estricta entre membership, proof of work y reputación profesional.
+
+## Despliegue en Vercel
+
+1. Importa el repositorio en Vercel.
+2. Conecta una base PostgreSQL y define `DATABASE_URL`.
+3. Configura `AUTH_SECRET`, OAuth y `DEMO_MODE=false`.
+4. Ejecuta `npx prisma db push && npm run db:seed` una sola vez contra la base inicial.
+5. Despliega. `npm run build` genera Prisma Client y compila Next.js con Turbopack.
+
+`vercel.json` ya declara el framework. El endpoint `/api/health` permite verificar el runtime.
+
+## Capa onchain
+
+La base de datos es la capa de producto; blockchain es la capa verificable. `AttestationProvider` expone membresía, contribution y verificación de organizaciones. El mock genera UIDs locales; `EvmAttestationProvider` es el punto de conexión para EAS o un contrato equivalente cuando existan RPC, schemas y signer.
+
+Solo se deben publicar hashes y referencias mínimas: `chainId`, `txHash`, `attestationUid`, `schemaUid`, wallets y timestamps. Los datos personales permanecen offchain.
