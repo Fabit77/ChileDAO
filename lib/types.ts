@@ -13,8 +13,8 @@ export type Member = {
   headline: string;
   bio: string;
   location: string;
-  role: "MEMBER" | "TRUSTED_MEMBER" | "ADMIN" | "CANDIDATE" | "QUALIFIED";
-  membershipSource: "FOUNDING" | "VOUCHED";
+  role: "MEMBER" | "TRUSTED_MEMBER" | "ADMIN" | "SUPER_ADMIN" | "CANDIDATE" | "QUALIFIED";
+  membershipSource: "FOUNDING" | "VOUCHED" | null;
   availability: string[];
   vouchCount: number;
   verifiedContributions: number;

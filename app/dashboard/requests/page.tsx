@@ -1,4 +1,11 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard-shell";
-export default function RequestsPage() { return <DashboardShell active="Solicitudes"><div className="dashboard-head"><div><span className="eyebrow">Validaciones</span><h1>Solicitudes</h1><p>Revisa cada señal en su contexto antes de responder.</p></div></div><div className="request-list large"><article><span className="request-type trust">Identidad</span><div><b>Martina Sáez solicita un vouch</b><p>Confirma únicamente que la conoces y reconoces su vínculo con Web3.</p></div><Link href="/vouch/demo-martina">Revisar <ArrowRight size={14} /></Link></article><article><span className="request-type work">Trabajo</span><div><b>Passkey wallet prototype</b><p>Benjamín Lee pide validar una contribution basada en evidencia.</p></div><button>Revisar</button></article><article><span className="request-type reputation">Skill</span><div><b>Endorsement · Education</b><p>Vinculado a “Curriculum Solidity desde cero”.</p></div><button>Revisar</button></article></div></DashboardShell>; }
+import { requireUser } from "@/lib/auth/session";
+import { db } from "@/lib/db";
+
+export default async function RequestsPage() {
+  const user = await requireUser();
+  const requests = await db.validationRequest.findMany({ where: { recipientId: user.id, status: "PENDING" }, include: { sender: { include: { profile: true } }, contribution: true }, orderBy: { createdAt: "desc" } });
+  return <DashboardShell active="Solicitudes" user={user}><div className="dashboard-head"><div><span className="eyebrow">Validaciones</span><h1>Solicitudes</h1><p>Revisa cada señal en su contexto antes de responder.</p></div></div>{requests.length ? <div className="request-list large">{requests.map((request) => <article key={request.id}><span className={`request-type ${request.type === "MEMBERSHIP_VOUCH" ? "trust" : "work"}`}>{request.type === "MEMBERSHIP_VOUCH" ? "Identidad" : "Trabajo"}</span><div><b>{request.sender.profile?.displayName ?? "Un miembro"} solicita una validación</b><p>{request.type === "MEMBERSHIP_VOUCH" ? "Confirma únicamente que le conoces y reconoces su vínculo con Web3." : request.contribution?.title}</p></div>{request.type === "MEMBERSHIP_VOUCH" ? <Link href={`/vouch/${request.senderId}`}>Revisar <ArrowRight size={14} /></Link> : <button>Revisar</button>}</article>)}</div> : <div className="empty-panel">No tienes solicitudes pendientes.</div>}</DashboardShell>;
+}

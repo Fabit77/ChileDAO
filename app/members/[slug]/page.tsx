@@ -5,21 +5,20 @@ import { ArrowLeft, ExternalLink, Github, Globe, Linkedin, MapPin, ShieldCheck }
 import { Avatar } from "@/components/avatar";
 import { ContributionCard } from "@/components/contribution-card";
 import { MemberVerified } from "@/components/status-pill";
-import { contributions, getMember, members } from "@/lib/demo-data";
+import { getPublicContributions, getPublicMember, getPublicMembers } from "@/lib/data/public";
 
 type Props = { params: Promise<{ slug: string }> };
-export function generateStaticParams() { return members.map(({ slug }) => ({ slug })); }
-export async function generateMetadata({ params }: Props): Promise<Metadata> { const member = getMember((await params).slug); return { title: member?.name ?? "Perfil" }; }
+export async function generateMetadata({ params }: Props): Promise<Metadata> { const member = await getPublicMember((await params).slug); return { title: member?.name ?? "Perfil" }; }
 
 export default async function MemberPage({ params }: Props) {
-  const member = getMember((await params).slug);
+  const [member, members, allWork] = await Promise.all([getPublicMember((await params).slug), getPublicMembers(), getPublicContributions()]);
   if (!member) notFound();
-  const work = contributions.filter((item) => item.authorSlug === member.slug);
+  const work = allWork.filter((item) => item.authorSlug === member.slug);
   return <main className="profile-page container">
     <Link className="back-link" href="/members"><ArrowLeft size={15} /> Volver a personas</Link>
     <section className="profile-header">
       <div className="profile-identity"><Avatar initials={member.initials} size="hero" index={members.indexOf(member)} /><div><MemberVerified founding={member.membershipSource === "FOUNDING"} /><h1>{member.name}</h1><p className="profile-handle">@{member.username}</p><p className="profile-headline">{member.headline}</p><span className="member-location"><MapPin size={14} />{member.location}</span></div></div>
-      <div className="profile-actions"><Link className="button button-primary" href={`/vouch/demo-${member.slug}`}>Verificar relación</Link><button className="icon-button" aria-label="Copiar enlace"><ExternalLink size={18} /></button></div>
+      <div className="profile-actions"><Link className="button button-primary" href={`/vouch/${member.id}`}>Verificar relación</Link><button className="icon-button" aria-label="Copiar enlace"><ExternalLink size={18} /></button></div>
     </section>
     <div className="profile-layout">
       <div className="profile-main">

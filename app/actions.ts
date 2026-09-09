@@ -22,8 +22,13 @@ export async function createVouch(input: unknown): Promise<ActionResult> {
   if (!canVouch(user.role)) return { ok: false, error: "Solo miembros pueden emitir vouches." };
   const parsed = z.object({ candidateId: id, relationship: z.enum(["worked_together", "event", "community", "hackathon", "friend", "education", "other"]), isPublic: z.boolean() }).safeParse(input);
   if (!parsed.success || parsed.data.candidateId === user.id) return { ok: false, error: "Vouch inválido." };
-  if (process.env.DATABASE_URL) await persistMembershipVouch({ ...parsed.data, validatorId: user.id });
-  return { ok: true };
+  try {
+    if (!process.env.DATABASE_URL) return { ok: false, error: "La base de datos no está configurada." };
+    await persistMembershipVouch({ ...parsed.data, validatorId: user.id });
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "No se pudo registrar el vouch." };
+  }
 }
 
 export async function revokeVouch(vouchId: string): Promise<ActionResult> {

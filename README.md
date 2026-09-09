@@ -22,13 +22,13 @@ Un vouch nunca crea un endorsement. Un endorsement nunca aumenta el progreso de 
 - Directorio filtrable de talento en `/members`.
 - Perfiles públicos con vouches, contributions, skills, endorsements y badges como señales observables.
 - Catálogo de proyectos y organizaciones con páginas públicas.
-- Onboarding en tres pasos y experiencia Candidate `0/5`.
+- Login real con GitHub mediante Supabase Auth y onboarding Candidate `0/5`.
 - Página compartible `/vouch/[token]` con el significado explícito del vouch.
 - Dashboard de Candidate y Member, bandeja de solicitudes y alta de contributions.
-- Zona administrativa para candidatos, organizaciones y disputas.
+- Zona administrativa y rol `SUPER_ADMIN` para designar miembros fundadores y otros administradores.
 - Server Actions validadas con Zod, autorización por rol y rate limiting básico.
 - Schema Prisma PostgreSQL con constraints, índices y enums de dominio.
-- Seed idempotente: 8 miembros, 2 candidatos, 4 organizaciones, 6 proyectos, 15 contributions, skills, badges, vouches y validations.
+- Seed idempotente solo para la taxonomía de skills; nunca crea personas ficticias.
 - `AttestationProvider` desacoplado, proveedor mock y boundary EVM.
 - Analytics agnóstico de proveedor.
 - 10 tests de las reglas críticas del grafo de confianza.
@@ -39,20 +39,18 @@ Un vouch nunca crea un endorsement. Un endorsement nunca aumenta el progreso de 
 app/                     App Router, páginas, Server Actions y API health
 components/              Componentes compartidos de producto
 lib/domain/              Reglas puras y testeables de membresía/reputación
-lib/auth/                Boundary de sesión y autorización server-side
+lib/auth/                Sesión Supabase y autorización server-side
+lib/supabase/            Cliente SSR de Supabase
 lib/attestations/        Contrato, mock y scaffold EVM
-lib/demo-data.ts         Dataset navegable sin credenciales
 prisma/schema.prisma     Modelo PostgreSQL de producción
-prisma/seed.ts           Seed idempotente
+prisma/seed.ts           Taxonomía inicial, sin perfiles demo
 ```
 
 La app usa Server Components para lecturas públicas y Client Components solo donde hay interacción. Las mutaciones de producción entran por Server Actions tratadas como endpoints no confiables: autentican, autorizan, validan input y limitan frecuencia.
 
-### Modo demo y producción
+### Identidades y datos reales
 
-`DEMO_MODE=true` permite recorrer el producto inmediatamente sin GitHub, Google, wallet ni base de datos. Los formularios interactivos de la demo persisten temporalmente en el navegador. El schema y las acciones server-side son el boundary de producción: al configurar PostgreSQL y OAuth, el repositorio Prisma sustituye los fixtures sin cambiar la UI ni las reglas de dominio.
-
-No uses `DEMO_MODE=true` para un despliegue público con datos reales.
+No existe modo demo. Los perfiles se crean después de autenticar una cuenta de GitHub y toda la información persiste en PostgreSQL de Supabase. Si Supabase todavía no está configurado, las vistas públicas muestran estados vacíos y el login explica que falta configuración.
 
 ## Setup local
 
@@ -67,17 +65,18 @@ npm run db:seed
 npm run dev
 ```
 
-Abre `http://localhost:3000`. Si todavía no tienes PostgreSQL, deja `DEMO_MODE=true`, omite `db push`/`db:seed` y navega el MVP con los datos incluidos.
+En Supabase Auth habilita GitHub y registra `http://localhost:3000/auth/callback` como redirect local.
 
 ## Variables de entorno
 
 Consulta [`.env.example`](./.env.example). Las únicas obligatorias para persistencia real son:
 
-- `DATABASE_URL`: conexión PostgreSQL con TLS.
-- `AUTH_SECRET`: secreto largo para el proveedor de sesión.
-- `DEMO_MODE=false`: desactiva el fallback demo.
+- `DATABASE_URL`: conexión PostgreSQL de Supabase con TLS.
+- `NEXT_PUBLIC_SUPABASE_URL`: URL del proyecto Supabase.
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: clave pública `anon` (nunca `service_role`).
+- `SUPERADMIN_GITHUB_USERNAMES=fabit`: cuentas GitHub que reciben el bootstrap inicial.
 
-GitHub/Google OAuth y EVM son adapters opcionales. Nunca se incluyen emails, razones privadas de vouch, teléfonos o mensajes personales en attestations.
+GitHub se configura como proveedor dentro de Supabase Auth. Nunca se incluyen emails, razones privadas de vouch, teléfonos o mensajes personales en attestations.
 
 ## Calidad
 
@@ -93,9 +92,9 @@ Los tests cubren el umbral 5/5, duplicados, auto-vouch, elegibilidad del validad
 ## Despliegue en Vercel
 
 1. Importa el repositorio en Vercel.
-2. Conecta una base PostgreSQL y define `DATABASE_URL`.
-3. Configura `AUTH_SECRET`, OAuth y `DEMO_MODE=false`.
-4. Ejecuta `npx prisma db push && npm run db:seed` una sola vez contra la base inicial.
+2. Crea un proyecto Supabase y define las cuatro variables anteriores en Vercel.
+3. Habilita GitHub en Supabase Auth y autoriza `https://chile-dao-orcin.vercel.app/auth/callback`.
+4. Ejecuta `npx prisma migrate deploy && npm run db:seed` una sola vez contra la base inicial.
 5. Despliega. `npm run build` genera Prisma Client y compila Next.js con Turbopack.
 
 `vercel.json` ya declara el framework. El endpoint `/api/health` permite verificar el runtime.

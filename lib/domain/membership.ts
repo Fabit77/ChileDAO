@@ -5,7 +5,8 @@ export type MembershipRole =
   | "QUALIFIED"
   | "MEMBER"
   | "TRUSTED_MEMBER"
-  | "ADMIN";
+  | "ADMIN"
+  | "SUPER_ADMIN";
 
 export type DomainVouch = {
   candidateId: string;
@@ -28,7 +29,7 @@ export class DomainError extends Error {
 }
 
 export function canVouch(role: MembershipRole) {
-  return role === "MEMBER" || role === "TRUSTED_MEMBER" || role === "ADMIN";
+  return role === "MEMBER" || role === "TRUSTED_MEMBER" || role === "ADMIN" || role === "SUPER_ADMIN";
 }
 
 export function activeVouchCount(candidate: CandidateState) {

@@ -53,6 +53,10 @@ describe("membership trust graph", () => {
     expect(createMembershipVouch(candidate(), { id: "member", role: "MEMBER" }).vouches).toHaveLength(1);
   });
 
+  it("allows a superadmin to bootstrap the trust graph", () => {
+    expect(createMembershipVouch(candidate(), { id: "owner", role: "SUPER_ADMIN" }).vouches).toHaveLength(1);
+  });
+
   it("decreases the count when a pre-membership vouch is revoked", () => {
     expect(revokeMembershipVouch(candidate(4), "member-0").vouches.filter((v) => v.active)).toHaveLength(3);
   });

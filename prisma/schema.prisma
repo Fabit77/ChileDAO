@@ -13,6 +13,7 @@ enum MembershipRole {
   MEMBER
   TRUSTED_MEMBER
   ADMIN
+  SUPER_ADMIN
 }
 
 enum MembershipSource {
@@ -131,7 +132,9 @@ enum AttestationType {
 
 model User {
   id                      String                   @id @default(cuid())
+  authId                  String                   @unique
   email                   String                   @unique
+  githubUsername          String?                  @unique
   role                    MembershipRole           @default(CANDIDATE)
   membershipSource        MembershipSource?
   qualifiedAt             DateTime?
