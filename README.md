@@ -74,7 +74,7 @@ Consulta [`.env.example`](./.env.example). Las únicas obligatorias para persist
 - `DATABASE_URL`: conexión PostgreSQL de Supabase con TLS.
 - `NEXT_PUBLIC_SUPABASE_URL`: URL del proyecto Supabase.
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: clave pública `anon` (nunca `service_role`).
-- `SUPERADMIN_GITHUB_USERNAMES=fabit`: cuentas GitHub que reciben el bootstrap inicial.
+- `SUPERADMIN_GITHUB_USERNAMES`: handles exactos de GitHub que reciben el bootstrap inicial. El username público de Chile DAO puede ser distinto.
 
 GitHub se configura como proveedor dentro de Supabase Auth. Nunca se incluyen emails, razones privadas de vouch, teléfonos o mensajes personales en attestations.
 

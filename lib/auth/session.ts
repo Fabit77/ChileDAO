@@ -21,7 +21,7 @@ function normalizedGithubUsername(user: SupabaseUser) {
 }
 
 function bootstrapSuperAdmins() {
-  return new Set((process.env.SUPERADMIN_GITHUB_USERNAMES ?? "fabit").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean));
+  return new Set((process.env.SUPERADMIN_GITHUB_USERNAMES ?? "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean));
 }
 
 async function provisionUser(authUser: SupabaseUser): Promise<SessionUser> {
