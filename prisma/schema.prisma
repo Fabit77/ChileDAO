@@ -1,0 +1,441 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MembershipRole {
+  CANDIDATE
+  QUALIFIED
+  MEMBER
+  TRUSTED_MEMBER
+  ADMIN
+}
+
+enum MembershipSource {
+  FOUNDING
+  VOUCHED
+}
+
+enum VouchRelationship {
+  WORKED_TOGETHER
+  EVENT
+  COMMUNITY
+  HACKATHON
+  FRIEND
+  EDUCATION
+  OTHER
+}
+
+enum Availability {
+  NOT_LOOKING
+  FREELANCE
+  FULL_TIME
+  PART_TIME
+  ADVISORY
+  BOUNTIES
+  HACKATHONS
+  SPEAKING
+}
+
+enum SkillEvidenceLevel {
+  SELF_DECLARED
+  COMMUNITY_VALIDATED
+  CONTRIBUTION_BACKED
+}
+
+enum ContributionStatus {
+  SELF_CLAIMED
+  COMMUNITY_VERIFIED
+  ORGANIZATION_VERIFIED
+  ONCHAIN_VERIFIED
+  DISPUTED
+}
+
+enum Visibility {
+  PUBLIC
+  MEMBERS_ONLY
+  PRIVATE
+}
+
+enum EvidenceType {
+  URL
+  GITHUB
+  LUMA
+  X
+  INSTAGRAM
+  VIDEO
+  DECK
+  WEBSITE
+  TRANSACTION_HASH
+  OTHER
+}
+
+enum ValidationDecision {
+  PENDING
+  VERIFIED
+  REJECTED
+  CHANGES_REQUESTED
+}
+
+enum OrganizationType {
+  COMMUNITY
+  DAO
+  PROTOCOL
+  STARTUP
+  COMPANY
+  UNIVERSITY
+  NONPROFIT
+  OTHER
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VALIDATOR
+}
+
+enum ProjectRole {
+  OWNER
+  CONTRIBUTOR
+  ADVISOR
+}
+
+enum RequestType {
+  MEMBERSHIP_VOUCH
+  CONTRIBUTION_VALIDATION
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum AttestationType {
+  MEMBERSHIP
+  CONTRIBUTION
+  ORGANIZATION_VERIFICATION
+}
+
+model User {
+  id                      String                   @id @default(cuid())
+  email                   String                   @unique
+  role                    MembershipRole           @default(CANDIDATE)
+  membershipSource        MembershipSource?
+  qualifiedAt             DateTime?
+  memberSince             DateTime?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  profile                 Profile?
+  wallets                 Wallet[]
+  vouchesReceived         MembershipVouch[]        @relation("VouchCandidate")
+  vouchesGiven            MembershipVouch[]        @relation("VouchValidator")
+  skills                  UserSkill[]
+  endorsementsReceived    SkillEndorsement[]       @relation("EndorsementRecipient")
+  endorsementsGiven       SkillEndorsement[]       @relation("EndorsementValidator")
+  contributions           Contribution[]
+  contributionValidations ContributionValidation[] @relation("MemberValidation")
+  organizationMemberships OrganizationMember[]
+  projectMemberships      ProjectMember[]
+  badges                  UserBadge[]
+  requestsSent            ValidationRequest[]      @relation("RequestSender")
+  requestsReceived        ValidationRequest[]      @relation("RequestRecipient")
+  activities              Activity[]
+
+  @@index([role])
+}
+
+model Profile {
+  id           String         @id @default(cuid())
+  userId       String         @unique
+  username     String         @unique
+  slug         String         @unique
+  displayName  String
+  headline     String?
+  bio          String?
+  avatarUrl    String?
+  location     String?
+  githubUrl    String?
+  linkedinUrl  String?
+  xUrl         String?
+  websiteUrl   String?
+  availability Availability[] @default([])
+  walletPublic Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([location])
+}
+
+model Wallet {
+  id         String    @id @default(cuid())
+  userId     String
+  address    String    @unique
+  chainId    Int
+  isPrimary  Boolean   @default(false)
+  verifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model MembershipVouch {
+  id            String             @id @default(cuid())
+  candidateId   String
+  validatorId   String
+  validatorRole MembershipRole
+  relationship  VouchRelationship?
+  isPublic      Boolean            @default(true)
+  isActive      Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  revokedAt     DateTime?
+  candidate     User               @relation("VouchCandidate", fields: [candidateId], references: [id], onDelete: Cascade)
+  validator     User               @relation("VouchValidator", fields: [validatorId], references: [id], onDelete: Restrict)
+
+  @@unique([validatorId, candidateId])
+  @@index([candidateId, isActive])
+}
+
+model Skill {
+  id           String             @id @default(cuid())
+  name         String             @unique
+  slug         String             @unique
+  category     String
+  createdAt    DateTime           @default(now())
+  users        UserSkill[]
+  endorsements SkillEndorsement[]
+  projects     ProjectSkill[]
+}
+
+model UserSkill {
+  id            String             @id @default(cuid())
+  userId        String
+  skillId       String
+  evidenceLevel SkillEvidenceLevel @default(SELF_DECLARED)
+  createdAt     DateTime           @default(now())
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill         Skill              @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, skillId])
+}
+
+model SkillEndorsement {
+  id             String        @id @default(cuid())
+  recipientId    String
+  validatorId    String
+  skillId        String
+  contributionId String?
+  comment        String?       @db.VarChar(280)
+  createdAt      DateTime      @default(now())
+  recipient      User          @relation("EndorsementRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  validator      User          @relation("EndorsementValidator", fields: [validatorId], references: [id], onDelete: Restrict)
+  skill          Skill         @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  contribution   Contribution? @relation(fields: [contributionId], references: [id], onDelete: SetNull)
+
+  @@unique([validatorId, recipientId, skillId, contributionId])
+  @@index([recipientId, skillId])
+}
+
+model Contribution {
+  id             String                   @id @default(cuid())
+  authorId       String
+  projectId      String?
+  organizationId String?
+  title          String
+  description    String
+  role           String
+  startDate      DateTime
+  endDate        DateTime?
+  status         ContributionStatus       @default(SELF_CLAIMED)
+  visibility     Visibility               @default(PUBLIC)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  author         User                     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  project        Project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  organization   Organization?            @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  evidence       ContributionEvidence[]
+  validations    ContributionValidation[]
+  endorsements   SkillEndorsement[]
+  requests       ValidationRequest[]
+
+  @@index([authorId, status])
+  @@index([projectId])
+  @@index([organizationId])
+}
+
+model ContributionEvidence {
+  id             String       @id @default(cuid())
+  contributionId String
+  type           EvidenceType
+  url            String
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+  contribution   Contribution @relation(fields: [contributionId], references: [id], onDelete: Cascade)
+
+  @@index([contributionId])
+}
+
+model ContributionValidation {
+  id             String             @id @default(cuid())
+  contributionId String
+  validatorId    String?
+  organizationId String?
+  decision       ValidationDecision @default(PENDING)
+  comment        String?            @db.VarChar(500)
+  respondedAt    DateTime?
+  createdAt      DateTime           @default(now())
+  contribution   Contribution       @relation(fields: [contributionId], references: [id], onDelete: Cascade)
+  validator      User?              @relation("MemberValidation", fields: [validatorId], references: [id], onDelete: SetNull)
+  organization   Organization?      @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@unique([contributionId, validatorId, organizationId])
+  @@index([contributionId, decision])
+}
+
+model Organization {
+  id                 String                   @id @default(cuid())
+  name               String
+  slug               String                   @unique
+  logoUrl            String?
+  description        String
+  website            String?
+  type               OrganizationType
+  verificationStatus VerificationStatus       @default(PENDING)
+  createdAt          DateTime                 @default(now())
+  members            OrganizationMember[]
+  projects           Project[]
+  contributions      Contribution[]
+  validations        ContributionValidation[]
+}
+
+model OrganizationMember {
+  id             String           @id @default(cuid())
+  organizationId String
+  userId         String
+  role           OrganizationRole @default(MEMBER)
+  createdAt      DateTime         @default(now())
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+}
+
+model Project {
+  id             String          @id @default(cuid())
+  organizationId String?
+  name           String
+  slug           String          @unique
+  description    String
+  website        String?
+  createdAt      DateTime        @default(now())
+  organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  members        ProjectMember[]
+  skills         ProjectSkill[]
+  contributions  Contribution[]
+}
+
+model ProjectMember {
+  id        String      @id @default(cuid())
+  projectId String
+  userId    String
+  role      ProjectRole @default(CONTRIBUTOR)
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+model ProjectSkill {
+  projectId String
+  skillId   String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  skill     Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, skillId])
+}
+
+model Badge {
+  id           String      @id @default(cuid())
+  name         String      @unique
+  slug         String      @unique
+  description  String
+  icon         String
+  criteriaType String
+  criteria     Json
+  isAutomatic  Boolean     @default(false)
+  recipients   UserBadge[]
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  badgeId   String
+  awardedBy String?
+  awardedAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+}
+
+model ValidationRequest {
+  id             String        @id @default(cuid())
+  type           RequestType
+  status         RequestStatus @default(PENDING)
+  tokenHash      String        @unique
+  senderId       String
+  recipientId    String?
+  contributionId String?
+  expiresAt      DateTime
+  createdAt      DateTime      @default(now())
+  respondedAt    DateTime?
+  sender         User          @relation("RequestSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient      User?         @relation("RequestRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
+  contribution   Contribution? @relation(fields: [contributionId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, status])
+}
+
+model Attestation {
+  id             String          @id @default(cuid())
+  type           AttestationType
+  entityId       String
+  chainId        Int
+  txHash         String?
+  attestationUid String          @unique
+  schemaUid      String?
+  subjectWallet  String
+  attesterWallet String
+  issuedAt       DateTime
+  metadataHash   String?
+  createdAt      DateTime        @default(now())
+
+  @@index([type, entityId])
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  actorId   String?
+  type      String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([actorId])
+}
