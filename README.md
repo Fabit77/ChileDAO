@@ -27,6 +27,8 @@ Un vouch nunca crea un endorsement. Un endorsement nunca aumenta el progreso de 
 - Dashboard de Candidate y Member, bandeja de solicitudes y alta de contributions.
 - Zona administrativa separada para verificar miembros fundadores, desactivar/reactivar cuentas, crear y entregar badges y designar otros `SUPER_ADMIN` entre usuarios registrados.
 - Server Actions validadas con Zod, autorización por rol y rate limiting básico.
+- Usernames normalizados y únicos, nombres sensibles reservados, historial de redirects y cooldown de 24 horas entre cambios.
+- Reglas de comunidad y privacidad con aceptación persistente y versionada.
 - Schema Prisma PostgreSQL con constraints, índices y enums de dominio.
 - Seed idempotente solo para la taxonomía de skills; nunca crea personas ficticias.
 - `AttestationProvider` desacoplado, proveedor mock y boundary EVM.
@@ -49,6 +51,8 @@ prisma/seed.ts           Taxonomía inicial, sin perfiles demo
 La app usa Server Components para lecturas públicas y Client Components solo donde hay interacción. Las mutaciones de producción entran por Server Actions tratadas como endpoints no confiables: autentican, autorizan, validan input y limitan frecuencia.
 
 Las operaciones de superadmin se registran en `Activity`. La desactivación de una cuenta es reversible: bloquea el acceso y oculta al usuario de las vistas públicas sin destruir su historial de confianza o reputación. Incorporar un perfil manualmente usa `membershipSource = FOUNDING` y nunca fabrica vouches.
+
+Los usernames anteriores quedan reservados para evitar suplantaciones y redirigen al username vigente del mismo perfil. Una wallet escrita manualmente nunca se marca como verificada: la verificación requerirá una firma criptográfica.
 
 ### Identidades y datos reales
 

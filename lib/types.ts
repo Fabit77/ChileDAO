@@ -17,6 +17,7 @@ export type Member = {
   membershipSource: "FOUNDING" | "VOUCHED" | null;
   availability: string[];
   vouchCount: number;
+  publicVouchers: { name: string; slug: string; initials: string }[];
   verifiedContributions: number;
   contributions: number;
   skills: SkillSignal[];

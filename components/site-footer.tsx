@@ -10,7 +10,7 @@ export function SiteFooter() {
         <div><span className="footer-label">Participar</span><Link href="/join">Crear perfil</Link><Link href="/dashboard">Mi dashboard</Link><Link href="/admin">Administración</Link></div>
         <div className="footer-note"><span>Construido desde Chile</span><span>para una Web abierta.</span></div>
       </div>
-      <div className="container footer-bottom"><span>© 2026 Chile DAO</span><span>Privacidad por diseño · Onchain cuando importa</span></div>
+      <div className="container footer-bottom"><span>© 2026 Chile DAO</span><span><Link href="/privacy">Privacidad</Link> · <Link href="/terms">Reglas de la comunidad</Link> · Onchain cuando importa</span></div>
     </footer>
   );
 }

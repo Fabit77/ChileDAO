@@ -140,6 +140,8 @@ model User {
   qualifiedAt             DateTime?
   memberSince             DateTime?
   deactivatedAt           DateTime?
+  termsAcceptedAt         DateTime?
+  privacyAcceptedAt       DateTime?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   profile                 Profile?
@@ -163,26 +165,38 @@ model User {
 }
 
 model Profile {
-  id           String         @id @default(cuid())
-  userId       String         @unique
-  username     String         @unique
-  slug         String         @unique
-  displayName  String
-  headline     String?
-  bio          String?
-  avatarUrl    String?
-  location     String?
-  githubUrl    String?
-  linkedinUrl  String?
-  xUrl         String?
-  websiteUrl   String?
-  availability Availability[] @default([])
-  walletPublic Boolean        @default(false)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String                   @id @default(cuid())
+  userId            String                   @unique
+  username          String                   @unique
+  slug              String                   @unique
+  usernameChangedAt DateTime?
+  displayName       String
+  headline          String?
+  bio               String?
+  avatarUrl         String?
+  location          String?
+  githubUrl         String?
+  linkedinUrl       String?
+  xUrl              String?
+  websiteUrl        String?
+  availability      Availability[]           @default([])
+  walletPublic      Boolean                  @default(false)
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  user              User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  usernameHistory   ProfileUsernameHistory[]
 
   @@index([location])
+}
+
+model ProfileUsernameHistory {
+  id        String   @id @default(cuid())
+  profileId String
+  username  String   @unique
+  createdAt DateTime @default(now())
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
 }
 
 model Wallet {

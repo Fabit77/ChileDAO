@@ -37,6 +37,7 @@ export async function revokeVouch(vouchId: string): Promise<ActionResult> {
 
 export async function createContribution(input: unknown): Promise<ActionResult<{ status: "SELF_CLAIMED" }>> {
   const user = await requireUser(); checkRateLimit(`contribution:${user.id}`, 8);
+  if (!canVouch(user.role)) return { ok: false, error: "Solo miembros verificados pueden registrar contributions." };
   const parsed = z.object({ title: z.string().trim().min(3).max(100), description: z.string().trim().min(20).max(800), role: z.string().trim().min(2).max(80), startDate: z.coerce.date(), evidenceUrl: z.string().url().transform(assertSafeUrl) }).safeParse(input);
   if (!parsed.success) return { ok: false, error: "Revisa los datos y la evidencia." };
   if (process.env.DATABASE_URL) await persistContribution(user.id, parsed.data);
@@ -44,16 +45,16 @@ export async function createContribution(input: unknown): Promise<ActionResult<{
 }
 
 export async function requestContributionValidation(contributionId: string, validatorId: string): Promise<ActionResult> {
-  const user = await requireUser(); checkRateLimit(`request-work:${user.id}`, 10); if (!id.safeParse(contributionId).success || !id.safeParse(validatorId).success) return { ok: false, error: "Solicitud inválida." }; if (process.env.DATABASE_URL) await persistValidationRequest(user.id, contributionId, validatorId); return { ok: true };
+  const user = await requireUser(); checkRateLimit(`request-work:${user.id}`, 10); if (!canVouch(user.role)) return { ok: false, error: "Solo miembros verificados pueden solicitar validaciones." }; if (!id.safeParse(contributionId).success || !id.safeParse(validatorId).success || user.id === validatorId) return { ok: false, error: "Solicitud inválida." }; if (process.env.DATABASE_URL) await persistValidationRequest(user.id, contributionId, validatorId); return { ok: true };
 }
 
 export async function validateContribution(input: unknown): Promise<ActionResult> {
-  const user = await requireUser(); if (!canVouch(user.role)) return { ok: false, error: "No autorizado." };
+  const user = await requireUser(); checkRateLimit(`validate-work:${user.id}`, 20); if (!canVouch(user.role)) return { ok: false, error: "No autorizado." };
   const parsed = z.object({ contributionId: id, decision: z.enum(["VERIFIED", "REJECTED", "CHANGES_REQUESTED"]), comment: z.string().trim().max(500).optional() }).safeParse(input); if (!parsed.success) return { ok: false, error: "Respuesta inválida." }; if (process.env.DATABASE_URL) await persistContributionValidation(user.id, parsed.data); return { ok: true };
 }
 
 export async function createEndorsement(input: unknown): Promise<ActionResult> {
-  const user = await requireUser(); if (!canVouch(user.role)) return { ok: false, error: "No autorizado." };
+  const user = await requireUser(); checkRateLimit(`endorsement:${user.id}`, 20); if (!canVouch(user.role)) return { ok: false, error: "No autorizado." };
   const parsed = z.object({ recipientId: id, skillId: id, contributionId: id.optional(), comment: z.string().trim().max(280).optional() }).safeParse(input); if (!parsed.success || parsed.data.recipientId === user.id) return { ok: false, error: "Endorsement inválido." }; if (process.env.DATABASE_URL) await persistEndorsement(user.id, parsed.data); return { ok: true };
 }
 

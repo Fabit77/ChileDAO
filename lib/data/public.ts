@@ -17,7 +17,7 @@ export async function getPublicMembers(limit?: number): Promise<Member[]> {
     where: { deactivatedAt: null, role: { in: [...publicRoles] }, profile: { isNot: null } },
     include: {
       profile: true,
-      vouchesReceived: { where: { isActive: true }, select: { id: true } },
+      vouchesReceived: { where: { isActive: true }, include: { validator: { include: { profile: true } } } },
       contributions: { select: { status: true } },
       skills: { include: { skill: true } },
       badges: { include: { badge: true } },
@@ -39,6 +39,7 @@ export async function getPublicMembers(limit?: number): Promise<Member[]> {
     membershipSource: user.membershipSource,
     availability: user.profile.availability,
     vouchCount: user.vouchesReceived.length,
+    publicVouchers: user.vouchesReceived.flatMap((item) => item.isPublic && item.validator.deactivatedAt === null && item.validator.profile ? [{ name: item.validator.profile.displayName, slug: item.validator.profile.slug, initials: initials(item.validator.profile.displayName) }] : []),
     verifiedContributions: user.contributions.filter((item) => verifiedStatuses.includes(item.status as typeof verifiedStatuses[number])).length,
     contributions: user.contributions.length,
     skills: user.skills.map((item) => ({ name: item.skill.name, level: item.evidenceLevel === "CONTRIBUTION_BACKED" ? "Con evidencia" as const : item.evidenceLevel === "COMMUNITY_VALIDATED" ? "Validada" as const : "Declarada" as const, endorsements: 0 })),
@@ -51,7 +52,10 @@ export async function getPublicMembers(limit?: number): Promise<Member[]> {
 
 export async function getPublicMember(slug: string) {
   const members = await getPublicMembers();
-  return members.find((member) => member.slug === slug);
+  const current = members.find((member) => member.slug === slug);
+  if (current || !process.env.DATABASE_URL) return current;
+  const historic = await db.profileUsernameHistory.findUnique({ where: { username: slug.toLowerCase() }, select: { profile: { select: { slug: true } } } });
+  return historic ? members.find((member) => member.slug === historic.profile.slug) : undefined;
 }
 
 export async function getPublicContributions(limit?: number): Promise<Contribution[]> {

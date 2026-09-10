@@ -12,7 +12,9 @@ export type SessionUser = {
   role: MembershipRole;
   githubUsername: string | null;
   deactivatedAt: Date | null;
-  profile: { username: string; slug: string; displayName: string; avatarUrl: string | null; headline: string | null; bio: string | null; location: string | null } | null;
+  termsAcceptedAt: Date | null;
+  privacyAcceptedAt: Date | null;
+  profile: { id: string; username: string; slug: string; usernameChangedAt: Date | null; displayName: string; avatarUrl: string | null; headline: string | null; bio: string | null; location: string | null } | null;
 };
 
 function normalizedGithubUsername(user: SupabaseUser) {
@@ -34,7 +36,7 @@ async function provisionUser(authUser: SupabaseUser): Promise<SessionUser> {
     where: { authId: authUser.id },
     update: { email, githubUsername, ...(shouldBootstrap ? { role: "SUPER_ADMIN", membershipSource: "FOUNDING" } : {}) },
     create: { authId: authUser.id, email, githubUsername, role: shouldBootstrap ? "SUPER_ADMIN" : "CANDIDATE", ...(shouldBootstrap ? { membershipSource: "FOUNDING", memberSince: new Date() } : {}) },
-    include: { profile: { select: { username: true, slug: true, displayName: true, avatarUrl: true, headline: true, bio: true, location: true } } },
+    include: { profile: { select: { id: true, username: true, slug: true, usernameChangedAt: true, displayName: true, avatarUrl: true, headline: true, bio: true, location: true } } },
   });
   return { ...user, role: user.role as MembershipRole };
 }

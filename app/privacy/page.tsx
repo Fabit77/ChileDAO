@@ -1,0 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Privacidad" };
+
+export default function PrivacyPage() {
+  return <main className="legal-page container"><span className="eyebrow">Privacidad por diseño</span><h1>Política de privacidad</h1><p className="legal-updated">Vigente desde el 10 de septiembre de 2026.</p><section><h2>Qué guardamos</h2><p>Guardamos los datos necesarios para operar tu cuenta: identidad de GitHub, email privado, perfil público, contributions, validaciones, vouches, badges, roles y registros de seguridad.</p></section><section><h2>Qué se muestra públicamente</h2><p>Tu nombre visible, username, bio, ubicación, enlaces que agregues, estado de membresía, trabajo público y señales de reputación. El email nunca se publica. La relación privada de un vouch tampoco se publica.</p></section><section><h2>Blockchain</h2><p>No registramos datos personales sensibles onchain. Las attestations utilizan identificadores, hashes, wallets y referencias mínimas cuando corresponda.</p></section><section><h2>Control de tu cuenta</h2><p>Puedes editar tu perfil. Una cuenta desactivada deja de aparecer públicamente, pero su historial se conserva para integridad y auditoría de la red. Puedes solicitar revisión a un superadmin.</p></section><section><h2>Proveedores</h2><p>GitHub y Supabase gestionan autenticación; Supabase almacena los datos; Vercel ejecuta y publica la aplicación. Cada proveedor aplica sus propias condiciones y medidas de seguridad.</p></section></main>;
+}
