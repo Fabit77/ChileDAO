@@ -29,12 +29,12 @@ async function provisionUser(authUser: SupabaseUser): Promise<SessionUser> {
   if (!email) throw new Error("AUTH_EMAIL_REQUIRED");
   const githubUsername = normalizedGithubUsername(authUser);
   const shouldBootstrap = Boolean(githubUsername && bootstrapSuperAdmins().has(githubUsername));
-  const existing = await db.user.findFirst({ where: { OR: [{ authId: authUser.id }, { email }] }, select: { id: true, role: true } });
-  const role = shouldBootstrap ? "SUPER_ADMIN" : existing?.role ?? "CANDIDATE";
-  const elevated = shouldBootstrap ? { membershipSource: "FOUNDING" as const, memberSince: new Date() } : {};
-  const user = existing
-    ? await db.user.update({ where: { id: existing.id }, data: { authId: authUser.id, email, githubUsername, role, ...elevated }, include: { profile: { select: { username: true, slug: true, displayName: true, avatarUrl: true, headline: true, bio: true, location: true } } } })
-    : await db.user.create({ data: { authId: authUser.id, email, githubUsername, role, ...elevated }, include: { profile: { select: { username: true, slug: true, displayName: true, avatarUrl: true, headline: true, bio: true, location: true } } } });
+  const user = await db.user.upsert({
+    where: { authId: authUser.id },
+    update: { email, githubUsername, ...(shouldBootstrap ? { role: "SUPER_ADMIN", membershipSource: "FOUNDING" } : {}) },
+    create: { authId: authUser.id, email, githubUsername, role: shouldBootstrap ? "SUPER_ADMIN" : "CANDIDATE", ...(shouldBootstrap ? { membershipSource: "FOUNDING", memberSince: new Date() } : {}) },
+    include: { profile: { select: { username: true, slug: true, displayName: true, avatarUrl: true, headline: true, bio: true, location: true } } },
+  });
   return { ...user, role: user.role as MembershipRole };
 }
 
