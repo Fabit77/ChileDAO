@@ -11,6 +11,7 @@ export type SessionUser = {
   email: string;
   role: MembershipRole;
   githubUsername: string | null;
+  deactivatedAt: Date | null;
   profile: { username: string; slug: string; displayName: string; avatarUrl: string | null; headline: string | null; bio: string | null; location: string | null } | null;
 };
 
@@ -49,6 +50,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 export async function requireUser() {
   const user = await getSessionUser();
   if (!user) redirect("/auth/login?next=/dashboard");
+  if (user.deactivatedAt) redirect("/auth/account-disabled");
   return user;
 }
 

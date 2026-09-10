@@ -25,7 +25,7 @@ Un vouch nunca crea un endorsement. Un endorsement nunca aumenta el progreso de 
 - Login real con GitHub mediante Supabase Auth y onboarding Candidate `0/5`.
 - Página compartible `/vouch/[token]` con el significado explícito del vouch.
 - Dashboard de Candidate y Member, bandeja de solicitudes y alta de contributions.
-- Zona administrativa y rol `SUPER_ADMIN` para designar miembros fundadores y otros administradores.
+- Zona administrativa separada para verificar miembros fundadores, desactivar/reactivar cuentas, crear y entregar badges y designar otros `SUPER_ADMIN` entre usuarios registrados.
 - Server Actions validadas con Zod, autorización por rol y rate limiting básico.
 - Schema Prisma PostgreSQL con constraints, índices y enums de dominio.
 - Seed idempotente solo para la taxonomía de skills; nunca crea personas ficticias.
@@ -47,6 +47,8 @@ prisma/seed.ts           Taxonomía inicial, sin perfiles demo
 ```
 
 La app usa Server Components para lecturas públicas y Client Components solo donde hay interacción. Las mutaciones de producción entran por Server Actions tratadas como endpoints no confiables: autentican, autorizan, validan input y limitan frecuencia.
+
+Las operaciones de superadmin se registran en `Activity`. La desactivación de una cuenta es reversible: bloquea el acceso y oculta al usuario de las vistas públicas sin destruir su historial de confianza o reputación. Incorporar un perfil manualmente usa `membershipSource = FOUNDING` y nunca fabrica vouches.
 
 ### Identidades y datos reales
 

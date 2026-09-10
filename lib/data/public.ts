@@ -14,7 +14,7 @@ export async function getPublicMembers(limit?: number): Promise<Member[]> {
   await connection();
   if (!process.env.DATABASE_URL) return [];
   const users = await db.user.findMany({
-    where: { role: { in: [...publicRoles] }, profile: { isNot: null } },
+    where: { deactivatedAt: null, role: { in: [...publicRoles] }, profile: { isNot: null } },
     include: {
       profile: true,
       vouchesReceived: { where: { isActive: true }, select: { id: true } },
@@ -57,7 +57,7 @@ export async function getPublicMember(slug: string) {
 export async function getPublicContributions(limit?: number): Promise<Contribution[]> {
   await connection();
   if (!process.env.DATABASE_URL) return [];
-  const records = await db.contribution.findMany({ where: { visibility: "PUBLIC" }, include: { author: { include: { profile: true } }, project: true, organization: true, evidence: true, validations: { where: { decision: "VERIFIED" } } }, orderBy: { createdAt: "desc" }, take: limit });
+  const records = await db.contribution.findMany({ where: { visibility: "PUBLIC", author: { deactivatedAt: null } }, include: { author: { include: { profile: true } }, project: true, organization: true, evidence: true, validations: { where: { decision: "VERIFIED" } } }, orderBy: { createdAt: "desc" }, take: limit });
   return records.flatMap((item) => item.author.profile ? [{ id: item.id, title: item.title, description: item.description, role: item.role, author: item.author.profile.displayName, authorSlug: item.author.profile.slug, project: item.project?.name, projectSlug: item.project?.slug, organization: item.organization?.name, status: item.status, validators: item.validations.length, evidenceType: item.evidence[0]?.type ?? "URL", evidenceUrl: item.evidence[0]?.url ?? "#", date: new Intl.DateTimeFormat("es-CL", { month: "short", year: "numeric" }).format(item.startDate) }] : []);
 }
 
@@ -71,6 +71,6 @@ export async function getPublicOrganizations(limit?: number): Promise<Organizati
 export async function getPublicProjects(limit?: number): Promise<Project[]> {
   await connection();
   if (!process.env.DATABASE_URL) return [];
-  const records = await db.project.findMany({ include: { organization: true, skills: { include: { skill: true } }, members: { include: { user: { include: { profile: true } } } }, contributions: { select: { status: true } } }, orderBy: { createdAt: "desc" }, take: limit });
+  const records = await db.project.findMany({ include: { organization: true, skills: { include: { skill: true } }, members: { where: { user: { deactivatedAt: null } }, include: { user: { include: { profile: true } } } }, contributions: { where: { author: { deactivatedAt: null } }, select: { status: true } } }, orderBy: { createdAt: "desc" }, take: limit });
   return records.map((item) => ({ id: item.id, slug: item.slug, name: item.name, description: item.description, organization: item.organization?.name ?? "Proyecto independiente", organizationSlug: item.organization?.slug ?? "", skills: item.skills.map((entry) => entry.skill.name), contributors: item.members.flatMap((entry) => entry.user.profile ? [entry.user.profile.displayName] : []), verifiedContributions: item.contributions.filter((entry) => verifiedStatuses.includes(entry.status as typeof verifiedStatuses[number])).length, website: item.website ?? "#" }));
 }

@@ -139,6 +139,7 @@ model User {
   membershipSource        MembershipSource?
   qualifiedAt             DateTime?
   memberSince             DateTime?
+  deactivatedAt           DateTime?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   profile                 Profile?
@@ -158,6 +159,7 @@ model User {
   activities              Activity[]
 
   @@index([role])
+  @@index([deactivatedAt])
 }
 
 model Profile {
