@@ -33,8 +33,27 @@ export async function createProfile(formData: FormData) {
 export async function updateProfile(formData: FormData) {
   const user = await requireUser();
   if (!user.profile) redirect("/join");
-  const parsed = z.object({ displayName: z.string().trim().min(2).max(80), headline: z.string().trim().max(120).optional(), location: z.string().trim().max(80).optional(), bio: z.string().trim().max(500).optional() }).safeParse(Object.fromEntries(formData));
+  const parsed = profileSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) redirect("/dashboard/profile?error=invalid-profile");
-  await db.profile.update({ where: { userId: user.id }, data: parsed.data });
+
+  const { username, ...profile } = parsed.data;
+  try {
+    await db.$transaction([
+      db.profile.update({
+        where: { userId: user.id },
+        data: { ...profile, username, slug: username },
+      }),
+      db.activity.create({
+        data: {
+          actorId: user.id,
+          type: "PROFILE_UPDATED",
+          metadata: { previousUsername: user.profile.username, username },
+        },
+      }),
+    ]);
+  } catch {
+    redirect("/dashboard/profile?error=username-taken");
+  }
+
   redirect("/dashboard/profile?saved=true");
 }
