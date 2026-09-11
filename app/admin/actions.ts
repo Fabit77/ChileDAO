@@ -1,10 +1,11 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/security";
+import { PUBLIC_CACHE_TAGS } from "@/lib/data/public-cache";
 
 const userSchema = z.object({ userId: z.string().cuid() });
 const badgeAssignmentSchema = z.object({ userId: z.string().cuid(), badgeId: z.string().cuid() });
@@ -19,6 +20,10 @@ function slugify(value: string) {
 }
 
 function refreshAdmin() {
+  updateTag(PUBLIC_CACHE_TAGS.members);
+  updateTag(PUBLIC_CACHE_TAGS.contributions);
+  updateTag(PUBLIC_CACHE_TAGS.organizations);
+  updateTag(PUBLIC_CACHE_TAGS.projects);
   revalidatePath("/admin");
   revalidatePath("/admin/users");
   revalidatePath("/admin/badges");

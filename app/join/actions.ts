@@ -1,12 +1,14 @@
 "use server";
 
 import { Prisma } from "@prisma/client";
+import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { isReservedUsername, nextUsernameChangeAt, normalizeUsername } from "@/lib/domain/username";
 import { checkRateLimit } from "@/lib/security";
+import { PUBLIC_CACHE_TAGS } from "@/lib/data/public-cache";
 
 const profileDetailsSchema = z.object({
   displayName: z.string().trim().min(2).max(80),
@@ -56,6 +58,7 @@ export async function createProfile(formData: FormData) {
     errorCode = isUniqueConflict(error) || (error instanceof Error && error.message === "USERNAME_TAKEN") ? "username-taken" : "database";
   }
   if (errorCode) redirect(`/join?error=${errorCode}`);
+  updateTag(PUBLIC_CACHE_TAGS.members);
   redirect("/dashboard");
 }
 
@@ -97,5 +100,6 @@ export async function updateProfile(formData: FormData) {
     errorCode = isUniqueConflict(error) || (error instanceof Error && error.message === "USERNAME_TAKEN") ? "username-taken" : "database";
   }
   if (errorCode) redirect(`/dashboard/profile?error=${errorCode}`);
+  updateTag(PUBLIC_CACHE_TAGS.members);
   redirect("/dashboard/profile?saved=true");
 }

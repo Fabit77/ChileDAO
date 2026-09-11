@@ -1,12 +1,14 @@
 "use server";
 
 import { randomBytes } from "node:crypto";
+import { updateTag } from "next/cache";
 import { z } from "zod";
 import { canVouch } from "@/lib/domain/membership";
 import { requireUser } from "@/lib/auth/session";
 import { assertSafeUrl, checkRateLimit } from "@/lib/security";
 import { persistMembershipVouch, persistVouchRevocation } from "@/lib/data/vouches";
 import { persistContribution, persistContributionValidation, persistEndorsement, persistValidationRequest, persistWallet } from "@/lib/data/reputation";
+import { PUBLIC_CACHE_TAGS } from "@/lib/data/public-cache";
 
 export type ActionResult<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
 const id = z.string().min(1).max(80);
@@ -25,6 +27,7 @@ export async function createVouch(input: unknown): Promise<ActionResult> {
   try {
     if (!process.env.DATABASE_URL) return { ok: false, error: "La base de datos no está configurada." };
     await persistMembershipVouch({ ...parsed.data, validatorId: user.id });
+    updateTag(PUBLIC_CACHE_TAGS.members);
     return { ok: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "No se pudo registrar el vouch." };
@@ -32,7 +35,12 @@ export async function createVouch(input: unknown): Promise<ActionResult> {
 }
 
 export async function revokeVouch(vouchId: string): Promise<ActionResult> {
-  const user = await requireUser(); checkRateLimit(`revoke:${user.id}`); if (!id.safeParse(vouchId).success) return { ok: false, error: "Vouch inválido." }; if (process.env.DATABASE_URL) await persistVouchRevocation(vouchId, user.id); return { ok: true };
+  const user = await requireUser(); checkRateLimit(`revoke:${user.id}`); if (!id.safeParse(vouchId).success) return { ok: false, error: "Vouch inválido." };
+  if (process.env.DATABASE_URL) {
+    await persistVouchRevocation(vouchId, user.id);
+    updateTag(PUBLIC_CACHE_TAGS.members);
+  }
+  return { ok: true };
 }
 
 export async function createContribution(input: unknown): Promise<ActionResult<{ status: "SELF_CLAIMED" }>> {
@@ -40,7 +48,12 @@ export async function createContribution(input: unknown): Promise<ActionResult<{
   if (!canVouch(user.role)) return { ok: false, error: "Solo miembros verificados pueden registrar contributions." };
   const parsed = z.object({ title: z.string().trim().min(3).max(100), description: z.string().trim().min(20).max(800), role: z.string().trim().min(2).max(80), startDate: z.coerce.date(), evidenceUrl: z.string().url().transform(assertSafeUrl) }).safeParse(input);
   if (!parsed.success) return { ok: false, error: "Revisa los datos y la evidencia." };
-  if (process.env.DATABASE_URL) await persistContribution(user.id, parsed.data);
+  if (process.env.DATABASE_URL) {
+    await persistContribution(user.id, parsed.data);
+    updateTag(PUBLIC_CACHE_TAGS.members);
+    updateTag(PUBLIC_CACHE_TAGS.contributions);
+    updateTag(PUBLIC_CACHE_TAGS.projects);
+  }
   return { ok: true, data: { status: "SELF_CLAIMED" } };
 }
 
@@ -50,12 +63,24 @@ export async function requestContributionValidation(contributionId: string, vali
 
 export async function validateContribution(input: unknown): Promise<ActionResult> {
   const user = await requireUser(); checkRateLimit(`validate-work:${user.id}`, 20); if (!canVouch(user.role)) return { ok: false, error: "No autorizado." };
-  const parsed = z.object({ contributionId: id, decision: z.enum(["VERIFIED", "REJECTED", "CHANGES_REQUESTED"]), comment: z.string().trim().max(500).optional() }).safeParse(input); if (!parsed.success) return { ok: false, error: "Respuesta inválida." }; if (process.env.DATABASE_URL) await persistContributionValidation(user.id, parsed.data); return { ok: true };
+  const parsed = z.object({ contributionId: id, decision: z.enum(["VERIFIED", "REJECTED", "CHANGES_REQUESTED"]), comment: z.string().trim().max(500).optional() }).safeParse(input); if (!parsed.success) return { ok: false, error: "Respuesta inválida." };
+  if (process.env.DATABASE_URL) {
+    await persistContributionValidation(user.id, parsed.data);
+    updateTag(PUBLIC_CACHE_TAGS.members);
+    updateTag(PUBLIC_CACHE_TAGS.contributions);
+    updateTag(PUBLIC_CACHE_TAGS.projects);
+  }
+  return { ok: true };
 }
 
 export async function createEndorsement(input: unknown): Promise<ActionResult> {
   const user = await requireUser(); checkRateLimit(`endorsement:${user.id}`, 20); if (!canVouch(user.role)) return { ok: false, error: "No autorizado." };
-  const parsed = z.object({ recipientId: id, skillId: id, contributionId: id.optional(), comment: z.string().trim().max(280).optional() }).safeParse(input); if (!parsed.success || parsed.data.recipientId === user.id) return { ok: false, error: "Endorsement inválido." }; if (process.env.DATABASE_URL) await persistEndorsement(user.id, parsed.data); return { ok: true };
+  const parsed = z.object({ recipientId: id, skillId: id, contributionId: id.optional(), comment: z.string().trim().max(280).optional() }).safeParse(input); if (!parsed.success || parsed.data.recipientId === user.id) return { ok: false, error: "Endorsement inválido." };
+  if (process.env.DATABASE_URL) {
+    await persistEndorsement(user.id, parsed.data);
+    updateTag(PUBLIC_CACHE_TAGS.members);
+  }
+  return { ok: true };
 }
 
 export async function connectWallet(address: string): Promise<ActionResult> {

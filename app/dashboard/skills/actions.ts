@@ -1,10 +1,11 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { checkRateLimit } from "@/lib/security";
+import { PUBLIC_CACHE_TAGS } from "@/lib/data/public-cache";
 
 export async function updateDeclaredSkills(formData: FormData) {
   const user = await requireUser();
@@ -23,6 +24,7 @@ export async function updateDeclaredSkills(formData: FormData) {
     }
     await tx.activity.create({ data: { actorId: user.id, type: "SELF_DECLARED_SKILLS_UPDATED", metadata: { skillIds: selected } } });
   });
+  updateTag(PUBLIC_CACHE_TAGS.members);
   revalidatePath("/dashboard/skills");
   revalidatePath("/members");
 }

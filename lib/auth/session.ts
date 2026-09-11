@@ -1,6 +1,7 @@
 import "server-only";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import type { MembershipRole } from "@/lib/domain/membership";
 import { db } from "@/lib/db";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -32,22 +33,33 @@ async function provisionUser(authUser: SupabaseUser): Promise<SessionUser> {
   if (!email) throw new Error("AUTH_EMAIL_REQUIRED");
   const githubUsername = normalizedGithubUsername(authUser);
   const shouldBootstrap = Boolean(githubUsername && bootstrapSuperAdmins().has(githubUsername));
-  const user = await db.user.upsert({
-    where: { authId: authUser.id },
-    update: { email, githubUsername, ...(shouldBootstrap ? { role: "SUPER_ADMIN", membershipSource: "FOUNDING" } : {}) },
-    create: { authId: authUser.id, email, githubUsername, role: shouldBootstrap ? "SUPER_ADMIN" : "CANDIDATE", ...(shouldBootstrap ? { membershipSource: "FOUNDING", memberSince: new Date() } : {}) },
+  const profile = { select: { id: true, username: true, slug: true, usernameChangedAt: true, displayName: true, avatarUrl: true, headline: true, bio: true, location: true } } as const;
+  const existing = await db.user.findUnique({ where: { authId: authUser.id }, include: { profile } });
+  if (existing) {
+    const identityChanged = existing.email !== email || existing.githubUsername !== githubUsername;
+    const needsBootstrap = shouldBootstrap && existing.role !== "SUPER_ADMIN";
+    if (!identityChanged && !needsBootstrap) return { ...existing, role: existing.role as MembershipRole };
+    const updated = await db.user.update({
+      where: { id: existing.id },
+      data: { email, githubUsername, ...(needsBootstrap ? { role: "SUPER_ADMIN", membershipSource: "FOUNDING", memberSince: existing.memberSince ?? new Date() } : {}) },
+      include: { profile },
+    });
+    return { ...updated, role: updated.role as MembershipRole };
+  }
+  const user = await db.user.create({
+    data: { authId: authUser.id, email, githubUsername, role: shouldBootstrap ? "SUPER_ADMIN" : "CANDIDATE", ...(shouldBootstrap ? { membershipSource: "FOUNDING", memberSince: new Date() } : {}) },
     include: { profile: { select: { id: true, username: true, slug: true, usernameChangedAt: true, displayName: true, avatarUrl: true, headline: true, bio: true, location: true } } },
   });
   return { ...user, role: user.role as MembershipRole };
 }
 
-export async function getSessionUser(): Promise<SessionUser | null> {
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const supabase = await createSupabaseServerClient();
   if (!supabase || !process.env.DATABASE_URL) return null;
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
   return provisionUser(data.user);
-}
+});
 
 export async function requireUser() {
   const user = await getSessionUser();
