@@ -1,5 +1,4 @@
 import "server-only";
-import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import type { MembershipRole } from "@/lib/domain/membership";
@@ -18,7 +17,14 @@ export type SessionUser = {
   profile: { id: string; username: string; slug: string; usernameChangedAt: Date | null; displayName: string; avatarUrl: string | null; headline: string | null; bio: string | null; location: string | null } | null;
 };
 
-function normalizedGithubUsername(user: SupabaseUser) {
+type AuthIdentity = {
+  id: string;
+  email?: string;
+  app_metadata: Record<string, unknown>;
+  user_metadata: Record<string, unknown>;
+};
+
+function normalizedGithubUsername(user: AuthIdentity) {
   if (user.app_metadata.provider !== "github") return null;
   const value = user.user_metadata.user_name ?? user.user_metadata.preferred_username;
   return typeof value === "string" ? value.trim().toLowerCase() : null;
@@ -28,7 +34,7 @@ function bootstrapSuperAdmins() {
   return new Set((process.env.SUPERADMIN_GITHUB_USERNAMES ?? "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean));
 }
 
-async function provisionUser(authUser: SupabaseUser): Promise<SessionUser> {
+async function provisionUser(authUser: AuthIdentity): Promise<SessionUser> {
   const email = authUser.email?.trim().toLowerCase();
   if (!email) throw new Error("AUTH_EMAIL_REQUIRED");
   const githubUsername = normalizedGithubUsername(authUser);
@@ -56,9 +62,15 @@ async function provisionUser(authUser: SupabaseUser): Promise<SessionUser> {
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const supabase = await createSupabaseServerClient();
   if (!supabase || !process.env.DATABASE_URL) return null;
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) return null;
-  return provisionUser(data.user);
+  const { data, error } = await supabase.auth.getClaims();
+  if (error || !data?.claims) return null;
+  const claims = data.claims;
+  return provisionUser({
+    id: claims.sub,
+    email: claims.email,
+    app_metadata: claims.app_metadata ?? {},
+    user_metadata: claims.user_metadata ?? {},
+  });
 });
 
 export async function requireUser() {
